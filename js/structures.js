@@ -1375,29 +1375,65 @@ const Structures = (() => {
     }
     ctx.save();
     ctx.globalAlpha *= opacity;
+
+    if (depth > 0) {
+      // Space-filling hex grid: 7 children (1 center + 6 ring) tile the
+      // parent's area completely so zooming never reveals dark empty space —
+      // every region is occupied by a meaningful sub-structure from the ecology.
+      //
+      // Coverage: center child reaches 0→0.44R; ring children at 0.52R radius
+      // with 0.40R size reach from 0.12R→0.92R; outer 8% covered by bleed
+      // from neighbouring cells.  7^5 = 16,807 leaf draws at max zoom.
+      const eco = ECOLOGY[type] || ['breath'];
+      const rot = (seed % 628) / 100; // deterministic rotation for variety
+
+      // 1 center + 6 ring
+      const hex = [{ x: 0, y: 0, r: size * 0.44 }];
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + rot;
+        hex.push({ x: Math.cos(a) * size * 0.52, y: Math.sin(a) * size * 0.52, r: size * 0.40 });
+      }
+
+      for (let i = 0; i < hex.length; i++) {
+        const { x, y, r } = hex[i];
+        if (r < 1.5) continue;
+        const subType = eco[((seed >>> 0) + i * 7) % eco.length];
+        const subSeed = (seed ^ (i * 0x9e3779b9)) >>> 0;
+        ctx.save();
+        ctx.translate(x, y);
+        draw(ctx, subType, r, color, subSeed, 1, depth - 1);
+        ctx.restore();
+      }
+      ctx.restore();
+      return;
+    }
+
+    // depth === 0: draw the actual structure as canvas paths.
+    // Always pass 0 as depth so structure functions never trigger their own
+    // (now superseded) depth>0 branches.
     switch (type) {
-      case 'galaxy':     galaxy(ctx, size, color, seed, depth);       break;
-      case 'golden':     goldenSpiral(ctx, size, color, seed, depth); break;
-      case 'plant':      plant(ctx, size, color, seed, depth);        break;
-      case 'maze':       maze(ctx, size, color, seed, depth);         break;
-      case 'circuit':    circuit(ctx, size, color, seed, depth);      break;
-      case 'dna':        dna(ctx, size, color, seed, depth);          break;
-      case 'neural':     neural(ctx, size, color, seed, depth);       break;
-      case 'lotus':      lotus(ctx, size, color, seed, depth);        break;
-      case 'mandala':    mandala(ctx, size, color, seed, depth);      break;
-      case 'elephant':   elephant(ctx, size, color, seed, depth);     break;
-      case 'sun':        sun(ctx, size, color, seed, depth);          break;
-      case 'moon':       moon(ctx, size, color, seed, depth);         break;
-      case 'wave':       wave(ctx, size, color, seed, depth);         break;
-      case 'fish':       fish(ctx, size, color, seed, depth);         break;
-      case 'ouroboros':  ouroboros(ctx, size, color, seed, depth);    break;
-      case 'breath':     breath(ctx, size, color, seed, depth);       break;
-      case 'infinity':   infinity(ctx, size, color, seed, depth);     break;
-      case 'heart':      heart(ctx, size, color, seed, depth);        break;
-      case 'om':         om(ctx, size, color, seed, depth);           break;
-      case 'sierpinski': sierpinski(ctx, size, color, seed, depth);   break;
-      case 'hilbert':    hilbert(ctx, size, color, seed, depth);      break;
-      case 'bintree':    bintree(ctx, size, color, seed, depth);      break;
+      case 'galaxy':     galaxy(ctx, size, color, seed, 0);       break;
+      case 'golden':     goldenSpiral(ctx, size, color, seed, 0); break;
+      case 'plant':      plant(ctx, size, color, seed, 0);        break;
+      case 'maze':       maze(ctx, size, color, seed, 0);         break;
+      case 'circuit':    circuit(ctx, size, color, seed, 0);      break;
+      case 'dna':        dna(ctx, size, color, seed, 0);          break;
+      case 'neural':     neural(ctx, size, color, seed, 0);       break;
+      case 'lotus':      lotus(ctx, size, color, seed, 0);        break;
+      case 'mandala':    mandala(ctx, size, color, seed, 0);      break;
+      case 'elephant':   elephant(ctx, size, color, seed, 0);     break;
+      case 'sun':        sun(ctx, size, color, seed, 0);          break;
+      case 'moon':       moon(ctx, size, color, seed, 0);         break;
+      case 'wave':       wave(ctx, size, color, seed, 0);         break;
+      case 'fish':       fish(ctx, size, color, seed, 0);         break;
+      case 'ouroboros':  ouroboros(ctx, size, color, seed, 0);    break;
+      case 'breath':     breath(ctx, size, color, seed, 0);       break;
+      case 'infinity':   infinity(ctx, size, color, seed, 0);     break;
+      case 'heart':      heart(ctx, size, color, seed, 0);        break;
+      case 'om':         om(ctx, size, color, seed, 0);           break;
+      case 'sierpinski': sierpinski(ctx, size, color, seed, 0);   break;
+      case 'hilbert':    hilbert(ctx, size, color, seed, 0);      break;
+      case 'bintree':    bintree(ctx, size, color, seed, 0);      break;
     }
     ctx.restore();
   }
