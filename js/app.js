@@ -46,57 +46,34 @@
     if (e.key === '-' || e.key === '_') Viewport.zoomAround(cx(), cy(), 1 / 1.3);
   });
 
-  // ── Tap-to-zoom ──────────────────────────────────────────────────────────
-  // Tap (no drag): smooth animated zoom into that point at 40×.
-  // Tap again while zoomed: reset to full portrait.
-  // Works alongside viewport.js drag/pan without conflict.
+  // ── Click-to-zoom ─────────────────────────────────────────────────────────
+  let animFrame = null;
 
-  let animFrame   = null;
-  let tapDownPos  = null;
-  let tapDownTime = 0;
-
-  function animateZoom(screenX, screenY, targetZoom, durationMs = 850) {
+  function animateZoom(screenX, screenY, targetZoom) {
     if (animFrame) cancelAnimationFrame(animFrame);
     const startZoom = viewport.zoom;
-    const startTime = performance.now();
+    const start     = performance.now();
+    const duration  = 900;
     function tick(now) {
-      const t      = Math.min(1, (now - startTime) / durationMs);
-      const eased  = 1 - Math.pow(1 - t, 3); // cubic ease-out
-      const factor = Math.pow(targetZoom / startZoom, eased) * startZoom / viewport.zoom;
-      Viewport.zoomAround(screenX, screenY, factor);
+      const t     = Math.min(1, (now - start) / duration);
+      const ease  = 1 - Math.pow(1 - t, 3);
+      const want  = startZoom * Math.pow(targetZoom / startZoom, ease);
+      Viewport.zoomAround(screenX, screenY, want / viewport.zoom);
       if (t < 1) animFrame = requestAnimationFrame(tick);
     }
     animFrame = requestAnimationFrame(tick);
   }
 
-  canvas.addEventListener('pointerdown', (e) => {
-    tapDownPos  = { x: e.clientX, y: e.clientY };
-    tapDownTime = Date.now();
-  }, { passive: true });
-
-  canvas.addEventListener('pointerup', (e) => {
-    if (!tapDownPos) return;
-    const dx   = e.clientX - tapDownPos.x;
-    const dy   = e.clientY - tapDownPos.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const held = Date.now() - tapDownTime;
-    tapDownPos = null;
-
-    // Only treat as a tap if pointer barely moved and wasn't held long
-    if (dist > 8 || held > 400) return;
-
+  // Track mousedown position to distinguish click from drag
+  let mouseDownX = 0, mouseDownY = 0;
+  canvas.addEventListener('mousedown', (e) => { mouseDownX = e.clientX; mouseDownY = e.clientY; });
+  canvas.addEventListener('mouseup', (e) => {
+    const dx = e.clientX - mouseDownX, dy = e.clientY - mouseDownY;
+    if (Math.sqrt(dx*dx + dy*dy) > 6) return; // was a drag
     const rect = canvas.getBoundingClientRect();
-    const sx   = e.clientX - rect.left;
-    const sy   = e.clientY - rect.top;
-
-    // Already deep? Reset. Otherwise zoom in.
-    if (viewport.zoom > 10) {
-      if (animFrame) cancelAnimationFrame(animFrame);
-      Viewport.resetView();
-    } else {
-      animateZoom(sx, sy, 40);
-    }
-  }, { passive: true });
+    if (viewport.zoom > 10) Viewport.resetView();
+    else animateZoom(e.clientX - rect.left, e.clientY - rect.top, 40);
+  });
 
   function renderFrame() {
     requestAnimationFrame(renderFrame);
