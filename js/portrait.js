@@ -66,8 +66,23 @@ const Portrait = (() => {
   // ── Structure type ─────────────────────────────────────────────────────────
   // Deterministic by (grid-x, grid-y, octave). Intentional placement:
   // bright/highlight areas → spiritual/organic; dark areas → CS/mathematical.
+  // Claude Code instance types — each bubble gets one, deterministically.
+  // These are the computational structures that run inside each agent:
+  // Hilbert (space-filling search), neural net (inference), circuit (substrate),
+  // binary tree (decision making), maze (pathfinding), Sierpiński (recursion).
+  const CLAUDE_INSTANCES = ['hilbert','neural','circuit','bintree','maze',
+                             'sierpinski','dna','hilbert','neural','circuit'];
+
   function structureType(gx, gy, octave, brightness) {
     const h = ((gx * 2654435761) ^ (gy * 2246822519) ^ (octave * 1234567)) >>> 0;
+
+    // Very bright regions (bokeh lights, brightness 215+) = Claude Code instances.
+    // Each bubble is a parallel agent: zoom in to see the computation inside.
+    if (brightness > 215) {
+      // Hash by large grid cell so each distinct bubble gets one consistent type
+      const bubbleId = ((Math.floor(gx / 8) * 997) ^ (Math.floor(gy / 8) * 613)) >>> 0;
+      return CLAUDE_INSTANCES[bubbleId % CLAUDE_INSTANCES.length];
+    }
 
     if (octave >= 3) {
       // Fine octaves: dense, space-filling types that look good tiny
