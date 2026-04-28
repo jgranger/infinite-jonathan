@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Jonathan — Portrait in Motion</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div id="loading">
+    <div style="letter-spacing:0.15em; margin-bottom: 8px;">LOADING</div>
+    <div id="loading-bar"></div>
+  </div>
+
+  <canvas id="c"></canvas>
+
+  <div id="ui">
+    <button class="zoom-btn" id="zoom-out">−</button>
+    <span id="zoom-level">1x</span>
+    <button class="zoom-btn" id="zoom-in">+</button>
+    <span id="hint">pinch or +/− to zoom &nbsp;·&nbsp; drag to pan</span>
+  </div>
+
+  <button id="reset-btn">RESET VIEW</button>
+
+  <script src="js/structures.js"></script>
+  <script src="js/portrait.js"></script>
+  <script src="js/viewport.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>

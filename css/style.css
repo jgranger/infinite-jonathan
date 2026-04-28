@@ -1,0 +1,111 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0a0a0f;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Courier New', monospace;
+}
+
+canvas {
+  cursor: grab;
+  display: block;
+}
+canvas.dragging { cursor: grabbing; }
+
+#ui {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: rgba(255,255,255,0.35);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  user-select: none;
+}
+
+#zoom-level {
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+  min-width: 40px;
+  text-align: center;
+}
+
+.zoom-btn {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.6);
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  pointer-events: all;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.zoom-btn:hover {
+  background: rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.9);
+}
+
+#loading {
+  position: fixed;
+  inset: 0;
+  background: #0a0a0f;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: rgba(255,255,255,0.5);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  transition: opacity 0.8s;
+}
+#loading.hidden { opacity: 0; pointer-events: none; }
+#loading-bar {
+  width: 200px;
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+  position: relative;
+}
+#loading-bar::after {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: rgba(255,255,255,0.5);
+  width: var(--p, 0%);
+  transition: width 0.3s;
+}
+
+#reset-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.4);
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#reset-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.7);
+}
