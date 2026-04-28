@@ -1,7 +1,7 @@
-// Portrait renderer — inverted halftone on dark canvas.
-// Low zoom: full-cell fill gives 100% coverage so portrait reads clearly.
-// Medium zoom: crossfade from filled circle → contrasting structure.
-// High zoom: recursive structures at up to depth 5.
+// Portrait renderer — one layer only: structures in portrait colour.
+// No background fills, no overlays. The structure IS the pixel.
+// At small sizes dense structures (breath, mandala) read as solid coloured marks.
+// Zooming reveals their form; deeper zoom reveals recursive sub-structures.
 const Portrait = (() => {
 
   let tonalData = null;
@@ -13,8 +13,19 @@ const Portrait = (() => {
     return h;
   }
 
-  function structureType(col, row, brightness, inMask) {
+  // Dense structure types — fill their bounding area well at small sizes.
+  // Used when structures are tiny so the portrait tone reads correctly.
+  const DENSE = ['breath','mandala','sierpinski','hilbert','golden','om'];
+
+  function structureType(col, row, brightness, inMask, screenR) {
     const h = cellHash(col, row);
+
+    // At small structure sizes, prioritise dense types so the portrait
+    // colour fills the cell area without visible dark gaps.
+    if (screenR < 18) {
+      return DENSE[h % DENSE.length];
+    }
+
     if (!inMask) {
       const bg = ['galaxy','moon','wave','infinity','breath','hilbert','bintree','wave','galaxy'];
       return bg[h % bg.length];
@@ -34,11 +45,8 @@ const Portrait = (() => {
       ];
       return mid[h % mid.length];
     }
-    const dark = [
-      'maze','circuit','neural','dna','galaxy','ouroboros',
-      'hilbert','bintree','sierpinski','mandala','infinity','breath'
-    ];
-    return dark[h % dark.length];
+    return ['maze','circuit','neural','dna','galaxy','ouroboros',
+            'hilbert','bintree','sierpinski','mandala','infinity','breath'][h % 12];
   }
 
   function init(data) { tonalData = data; }
@@ -64,7 +72,6 @@ const Portrait = (() => {
 
         const [, , brightness, red, grn, blu, angle, inMask] = cell;
 
-        // Inverted halftone: bright → large structure, dark → small (dark bg shows through)
         let sizeFrac;
         if (inMask) {
           const t = brightness / 255;
@@ -75,46 +82,35 @@ const Portrait = (() => {
           sizeFrac = 0.04 + (brightness / 255) * 0.18;
         }
 
+        const sx = ((col + 0.5) * cellW - vpX) * zoom;
+        const sy = ((row + 0.5) * cellH - vpY) * zoom;
         const screenR = cellPx * sizeFrac * 0.5;
+
         if (screenR < 0.3) continue;
 
         const color = `rgb(${red},${grn},${blu})`;
 
-        // ── Portrait-colour cell fill ─────────────────────────────────────────
-        // Rectangles tile perfectly → zero dark gaps, always 100% coverage.
-        // Alpha stays at 1 until screenR=4 (structures start), then fades
-        // slowly over 40px so coverage is maintained during the transition.
-        const fillAlpha = screenR < 4
-          ? 1
-          : Math.max(0, 1 - (screenR - 4) / 40);
+        // Sub-pixel: 1×1 rect
+        if (screenR < 1.2) {
+          ctx.fillStyle = color;
+          ctx.fillRect(sx, sy, 1.5, 1.5);
+          continue;
+        }
 
-        const cellX = (col * cellW - vpX) * zoom;
-        const cellY = (row * cellH - vpY) * zoom;
-
-        ctx.fillStyle = fillAlpha > 0.995
-          ? color
-          : `rgba(${red},${grn},${blu},${fillAlpha.toFixed(3)})`;
-        ctx.fillRect(cellX, cellY, cellPx + 0.5, cellPx + 0.5);
-
-        // ── Structure overlay ─────────────────────────────────────────────────
-        if (screenR < 4) continue;
-
-        const sx = ((col + 0.5) * cellW - vpX) * zoom;
-        const sy = ((row + 0.5) * cellH - vpY) * zoom;
-
-        const structAlpha = Math.min(1, (screenR - 4) / 10);
-        if (structAlpha < 0.01) continue;
-
-        const type   = structureType(col, row, brightness, inMask);
-        const seed   = cellHash(col, row);
-        const depth  = Math.min(5, Math.max(0, Math.floor(Math.log(screenR / 6) / Math.log(4))));
-        const cf     = brightness > 128 ? 0.58 : 1.9;
-        const sColor = `rgb(${Math.min(255,Math.round(red*cf))},${Math.min(255,Math.round(grn*cf))},${Math.min(255,Math.round(blu*cf))})`;
+        // The structure IS the pixel — drawn in portrait colour, no background fill.
+        // At small sizes DENSE types (breath=concentric rings, mandala, sierpinski)
+        // cover their area well, so the portrait tone reads correctly.
+        // At larger sizes the full variety of types reveals itself.
+        // 2.2× bleed so neighbouring structures overlap, filling inter-cell gaps.
+        const type    = structureType(col, row, brightness, inMask, screenR);
+        const seed    = cellHash(col, row);
+        const depth   = Math.min(5, Math.max(0, Math.floor(Math.log(screenR / 6) / Math.log(4))));
+        const opacity = Math.min(1, (screenR - 1.2) / 3);
 
         ctx.save();
         ctx.translate(sx, sy);
         ctx.rotate(angle);
-        Structures.draw(ctx, type, screenR * 1.8, sColor, seed, structAlpha, depth);
+        Structures.draw(ctx, type, screenR * 2.2, color, seed, opacity, depth);
         ctx.restore();
       }
     }
