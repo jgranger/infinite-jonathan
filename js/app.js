@@ -46,50 +46,57 @@
     if (e.key === '-' || e.key === '_') Viewport.zoomAround(cx(), cy(), 1 / 1.3);
   });
 
-  // ── Click-to-zoom ────────────────────────────────────────────────────────
-  // Single click: smooth animated zoom into the clicked point (40× target).
-  // Double-click: zoom back to full portrait view.
-  // This lets you explore each Claude Code instance bubble directly.
+  // ── Tap-to-zoom ──────────────────────────────────────────────────────────
+  // Tap (no drag): smooth animated zoom into that point at 40×.
+  // Tap again while zoomed: reset to full portrait.
+  // Works alongside viewport.js drag/pan without conflict.
 
-  let animFrame = null;
+  let animFrame   = null;
+  let tapDownPos  = null;
+  let tapDownTime = 0;
 
-  function animateZoom(screenX, screenY, targetZoom, durationMs = 900) {
+  function animateZoom(screenX, screenY, targetZoom, durationMs = 850) {
     if (animFrame) cancelAnimationFrame(animFrame);
-
     const startZoom = viewport.zoom;
     const startTime = performance.now();
-
     function tick(now) {
-      const t = Math.min(1, (now - startTime) / durationMs);
-      // Cubic ease-out
-      const eased = 1 - Math.pow(1 - t, 3);
-      const desiredZoom = startZoom * Math.pow(targetZoom / startZoom, eased);
-      const factor = desiredZoom / viewport.zoom;
+      const t      = Math.min(1, (now - startTime) / durationMs);
+      const eased  = 1 - Math.pow(1 - t, 3); // cubic ease-out
+      const factor = Math.pow(targetZoom / startZoom, eased) * startZoom / viewport.zoom;
       Viewport.zoomAround(screenX, screenY, factor);
       if (t < 1) animFrame = requestAnimationFrame(tick);
     }
-
     animFrame = requestAnimationFrame(tick);
   }
 
-  let lastClick = 0;
-  canvas.addEventListener('click', (e) => {
-    // Ignore if a drag just finished (viewport.js sets dragging flag briefly)
-    if (e.detail > 1) return; // suppress if triggered by dblclick
+  canvas.addEventListener('pointerdown', (e) => {
+    tapDownPos  = { x: e.clientX, y: e.clientY };
+    tapDownTime = Date.now();
+  }, { passive: true });
 
-    const now = Date.now();
-    if (now - lastClick < 350) return; // handled by dblclick
-    lastClick = now;
+  canvas.addEventListener('pointerup', (e) => {
+    if (!tapDownPos) return;
+    const dx   = e.clientX - tapDownPos.x;
+    const dy   = e.clientY - tapDownPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const held = Date.now() - tapDownTime;
+    tapDownPos = null;
+
+    // Only treat as a tap if pointer barely moved and wasn't held long
+    if (dist > 8 || held > 400) return;
 
     const rect = canvas.getBoundingClientRect();
-    animateZoom(e.clientX - rect.left, e.clientY - rect.top, 40);
-  });
+    const sx   = e.clientX - rect.left;
+    const sy   = e.clientY - rect.top;
 
-  canvas.addEventListener('dblclick', (e) => {
-    lastClick = 0;
-    if (animFrame) cancelAnimationFrame(animFrame);
-    Viewport.resetView();
-  });
+    // Already deep? Reset. Otherwise zoom in.
+    if (viewport.zoom > 10) {
+      if (animFrame) cancelAnimationFrame(animFrame);
+      Viewport.resetView();
+    } else {
+      animateZoom(sx, sy, 40);
+    }
+  }, { passive: true });
 
   function renderFrame() {
     requestAnimationFrame(renderFrame);
