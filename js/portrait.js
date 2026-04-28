@@ -1,111 +1,172 @@
-// Portrait renderer — portrait colour fill + portrait colour structures.
-// Both layers are the same colour so there's no visible "overlay" separation.
-// The fill provides coverage; the structure provides form that reveals on zoom.
-// As the fill fades at high zoom, hex-grid sub-structures fill the remaining space.
+// Multi-octave portrait renderer.
+//
+// There is no fixed grid and no depth limit. Instead, we define a family
+// of grids at exponentially decreasing scales (octaves). At any zoom level,
+// every octave whose structures fall in the visible size range is rendered
+// simultaneously. As you zoom deeper, finer octaves enter the visible range
+// and coarser ones leave it — creating seamless infinite expansion.
+//
+// The portrait is encoded as a continuous function: bilinear interpolation
+// of the tonal field gives colour + brightness + gradient angle at any
+// world coordinate. Brightness drives structure size (inverted halftone):
+// bright areas have large structures (fills cell → reads bright), dark areas
+// have small structures (canvas shows through → reads dark).
+//
+// At zoom 1×:  octaves 0–2 visible  → portrait reads through halftone density
+// At zoom 4×:  octaves 0–3 visible  → first structures emerge
+// At zoom 16×: octaves 1–4 visible  → finer structures appear inside coarser
+// At zoom 64×: octaves 2–5 visible  → three simultaneous scale levels
+// ... continues forever.
+
 const Portrait = (() => {
 
-  let tonalData = null;
+  const BASE  = 32;   // world-px size of the coarsest octave's cells
+  const RATIO = 4;    // each octave is 4× finer than the previous
+  const MIN_SCREEN = 1.2;   // don't render structures smaller than this (px)
+  const MAX_SCREEN = 700;   // don't render structures larger than this (px)
 
-  function cellHash(col, row) {
-    let h = (col * 2654435761 ^ row * 2246822519) >>> 0;
-    h ^= h >>> 16; h = Math.imul(h, 0x45d9f3b) >>> 0;
-    h ^= h >>> 16;
-    return h;
+  let td = null; // tonal data
+
+  // ── Portrait sampler ──────────────────────────────────────────────────────
+  // Bilinear interpolation of the tonal-field grid.
+  // Returns [r, g, b, brightness, angle] or null if outside the subject.
+  function sample(wx, wy) {
+    if (!td) return null;
+    const { grid_w: gW, grid_h: gH, canvas_w: cW, canvas_h: cH, cells } = td;
+    if (wx < 0 || wx >= cW || wy < 0 || wy >= cH) return null;
+
+    const gxf = (wx / cW) * gW;
+    const gyf = (wy / cH) * gH;
+    const gx0 = Math.min(gW - 2, Math.floor(gxf));
+    const gy0 = Math.min(gH - 2, Math.floor(gyf));
+    const fx  = gxf - gx0;
+    const fy  = gyf - gy0;
+
+    const c00 = cells[gy0 * gW + gx0];
+    const c10 = cells[gy0 * gW + gx0 + 1];
+    const c01 = cells[(gy0 + 1) * gW + gx0];
+    const c11 = cells[(gy0 + 1) * gW + gx0 + 1];
+    if (!c00 || !c10 || !c01 || !c11) return null;
+
+    // Only within the subject mask
+    if (!c00[7] && !c10[7] && !c01[7] && !c11[7]) return null;
+
+    const bl = (v00, v10, v01, v11) =>
+      v00 + (v10 - v00) * fx + (v01 - v00) * fy + (v11 - v10 - v01 + v00) * fx * fy;
+
+    return [
+      Math.round(bl(c00[3], c10[3], c01[3], c11[3])), // r
+      Math.round(bl(c00[4], c10[4], c01[4], c11[4])), // g
+      Math.round(bl(c00[5], c10[5], c01[5], c11[5])), // b
+      bl(c00[2], c10[2], c01[2], c11[2]),              // brightness
+      c00[6],                                           // angle
+    ];
   }
 
-  const DENSE = ['breath','mandala','sierpinski','hilbert','golden','om'];
+  // ── Structure type ─────────────────────────────────────────────────────────
+  // Deterministic by (grid-x, grid-y, octave). Intentional placement:
+  // bright/highlight areas → spiritual/organic; dark areas → CS/mathematical.
+  function structureType(gx, gy, octave, brightness) {
+    const h = ((gx * 2654435761) ^ (gy * 2246822519) ^ (octave * 1234567)) >>> 0;
 
-  function structureType(col, row, brightness, inMask, screenR) {
-    const h = cellHash(col, row);
-    if (screenR < 18) return DENSE[h % DENSE.length];
-    if (!inMask) {
-      return ['galaxy','moon','wave','infinity','breath','hilbert','bintree','wave','galaxy'][h % 9];
+    if (octave >= 3) {
+      // Fine octaves: dense, space-filling types that look good tiny
+      const t = ['breath','mandala','hilbert','sierpinski','golden','om'];
+      return t[h % t.length];
     }
     if (brightness > 160) {
-      return ['lotus','sun','golden','om','breath','heart','mandala','elephant',
-              'plant','sierpinski','infinity','fish','dna','wave'][h % 14];
+      // Highlights — spiritual, life, mathematical beauty
+      const t = ['lotus','golden','om','breath','mandala','elephant',
+                 'heart','sierpinski','plant','dna','infinity'];
+      return t[h % t.length];
     }
-    if (brightness > 100) {
-      return ['wave','fish','ouroboros','infinity','dna','plant','lotus','moon',
-              'heart','golden','mandala','om','breath','sierpinski','hilbert',
-              'elephant','sun','circuit','neural'][h % 19];
+    if (brightness > 90) {
+      // Mid-tones — nature, cycles, cosmos
+      const t = ['wave','galaxy','plant','dna','ouroboros','golden',
+                 'mandala','fish','lotus','moon','breath'];
+      return t[h % t.length];
     }
-    return ['maze','circuit','neural','dna','galaxy','ouroboros',
-            'hilbert','bintree','sierpinski','mandala','infinity','breath'][h % 12];
+    // Shadows — engineering, mathematics, computation
+    const t = ['circuit','maze','neural','hilbert','bintree',
+               'dna','sierpinski','mandala','galaxy','infinity'];
+    return t[h % t.length];
   }
 
-  function init(data) { tonalData = data; }
+  // ── Init ──────────────────────────────────────────────────────────────────
+  function init(data) { td = data; }
 
+  // ── Render ────────────────────────────────────────────────────────────────
   function render(ctx, viewport, canvasW, canvasH) {
-    if (!tonalData) return;
+    if (!td) return;
 
     const { x: vpX, y: vpY, zoom } = viewport;
-    const { grid_w, grid_h, canvas_w, canvas_h, cells } = tonalData;
-    const cellW = canvas_w / grid_w;
-    const cellH = canvas_h / grid_h;
-    const cellPx = cellW * zoom;
 
-    const colMin = Math.max(0, Math.floor(vpX / cellW));
-    const colMax = Math.min(grid_w - 1, Math.ceil((vpX + canvasW / zoom) / cellW));
-    const rowMin = Math.max(0, Math.floor(vpY / cellH));
-    const rowMax = Math.min(grid_h - 1, Math.ceil((vpY + canvasH / zoom) / cellH));
+    // Octave L is visible when MIN_SCREEN ≤ cellWorldSize × zoom ≤ MAX_SCREEN
+    // cellWorldSize = BASE / RATIO^L
+    // → L_min = floor( log(BASE × zoom / MAX_SCREEN) / log(RATIO) )
+    // → L_max = ceil ( log(BASE × zoom / MIN_SCREEN) / log(RATIO) )
+    const logR  = Math.log(RATIO);
+    const L_min = Math.max(0, Math.floor(Math.log(BASE * zoom / MAX_SCREEN) / logR));
+    const L_max = Math.ceil(Math.log(BASE * zoom / MIN_SCREEN) / logR);
 
-    for (let row = rowMin; row <= rowMax; row++) {
-      for (let col = colMin; col <= colMax; col++) {
-        const cell = cells[row * grid_w + col];
-        if (!cell) continue;
+    for (let L = L_min; L <= L_max; L++) {
+      const worldSize  = BASE / Math.pow(RATIO, L);  // world px per cell
+      const screenSize = worldSize * zoom;             // screen px per cell
 
-        const [, , brightness, red, grn, blu, angle, inMask] = cell;
+      // Iterate only over the cells that intersect the viewport
+      const gx0 = Math.floor(vpX / worldSize) - 1;
+      const gy0 = Math.floor(vpY / worldSize) - 1;
+      const gx1 = Math.ceil((vpX + canvasW / zoom) / worldSize) + 1;
+      const gy1 = Math.ceil((vpY + canvasH / zoom) / worldSize) + 1;
 
-        let sizeFrac;
-        if (inMask) {
-          const t = brightness / 255;
-          const curved = t <= 0.70 ? t : 0.70 + (t - 0.70) * 0.42;
-          sizeFrac = 0.04 + curved * 0.88;
-        } else {
-          if (brightness < 40 || brightness > 220) continue;
-          sizeFrac = 0.04 + (brightness / 255) * 0.18;
+      for (let gy = gy0; gy <= gy1; gy++) {
+        for (let gx = gx0; gx <= gx1; gx++) {
+
+          // World-space centre of this cell
+          const wx = (gx + 0.5) * worldSize;
+          const wy = (gy + 0.5) * worldSize;
+
+          const s = sample(wx, wy);
+          if (!s) continue;
+
+          const [r, g, b, brightness, angle] = s;
+
+          // Inverted halftone: brightness → structure size fraction
+          const t       = brightness / 255;
+          const curved  = t <= 0.70 ? t : 0.70 + (t - 0.70) * 0.42;
+          const sizeFrac = 0.04 + curved * 0.88;
+          const structR  = screenSize * sizeFrac * 0.5; // screen radius
+
+          if (structR < 0.3) continue;
+
+          const sx    = (wx - vpX) * zoom;
+          const sy    = (wy - vpY) * zoom;
+          const color = `rgb(${r},${g},${b})`;
+
+          // ── Fast paths ──────────────────────────────────────────────────
+          if (structR < 1.0) {
+            ctx.fillStyle = color;
+            ctx.fillRect(sx - 0.5, sy - 0.5, 1.5, 1.5);
+            continue;
+          }
+
+          if (structR < 4) {
+            ctx.beginPath();
+            ctx.arc(sx, sy, structR, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            continue;
+          }
+
+          // ── Full structure ───────────────────────────────────────────────
+          const seed    = ((gx * 2654435761) ^ (gy * 2246822519) ^ (L * 1234567)) >>> 0;
+          const type    = structureType(gx, gy, L, brightness);
+          const opacity = Math.min(1, (structR - 4) / 8);
+          // depth=0: the octave system provides multi-scale; each structure
+          // is its pure base form. Zooming into it reveals the next octave
+          // filling the surrounding space — that IS structure-inside-structure.
+          Structures.draw(ctx, type, structR * 1.6, color, seed, opacity, 0);
         }
-
-        const sx = ((col + 0.5) * cellW - vpX) * zoom;
-        const sy = ((row + 0.5) * cellH - vpY) * zoom;
-        const screenR = cellPx * sizeFrac * 0.5;
-
-        if (screenR < 0.3) continue;
-
-        const color = `rgb(${red},${grn},${blu})`;
-
-        // ── Portrait-colour fill ──────────────────────────────────────────────
-        // Tiles perfectly, zero gaps. Fades slowly as structures establish.
-        // Same colour as structures — no "two layer" visual separation.
-        const fillAlpha = screenR < 4
-          ? 1
-          : Math.max(0, 1 - (screenR - 4) / 50);
-
-        if (fillAlpha > 0.005) {
-          const cellX = (col * cellW - vpX) * zoom;
-          const cellY = (row * cellH - vpY) * zoom;
-          ctx.fillStyle = fillAlpha > 0.995
-            ? color
-            : `rgba(${red},${grn},${blu},${fillAlpha.toFixed(3)})`;
-          ctx.fillRect(cellX, cellY, cellPx + 0.5, cellPx + 0.5);
-        }
-
-        // ── Structure in portrait colour ──────────────────────────────────────
-        // Same colour as the fill so the two layers are visually unified.
-        // The structure provides form and texture that reveals as you zoom in.
-        if (screenR < 3) continue;
-
-        const type    = structureType(col, row, brightness, inMask, screenR);
-        const seed    = cellHash(col, row);
-        const depth   = Math.min(5, Math.max(0, Math.floor(Math.log(screenR / 6) / Math.log(4))));
-        const opacity = Math.min(1, (screenR - 3) / 5);
-
-        ctx.save();
-        ctx.translate(sx, sy);
-        ctx.rotate(angle);
-        Structures.draw(ctx, type, screenR * 1.8, color, seed, opacity, depth);
-        ctx.restore();
       }
     }
   }
