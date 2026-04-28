@@ -1,7 +1,7 @@
-// Portrait renderer — one layer only: structures in portrait colour.
-// No background fills, no overlays. The structure IS the pixel.
-// At small sizes dense structures (breath, mandala) read as solid coloured marks.
-// Zooming reveals their form; deeper zoom reveals recursive sub-structures.
+// Portrait renderer — portrait colour fill + portrait colour structures.
+// Both layers are the same colour so there's no visible "overlay" separation.
+// The fill provides coverage; the structure provides form that reveals on zoom.
+// As the fill fades at high zoom, hex-grid sub-structures fill the remaining space.
 const Portrait = (() => {
 
   let tonalData = null;
@@ -13,37 +13,22 @@ const Portrait = (() => {
     return h;
   }
 
-  // Dense structure types — fill their bounding area well at small sizes.
-  // Used when structures are tiny so the portrait tone reads correctly.
   const DENSE = ['breath','mandala','sierpinski','hilbert','golden','om'];
 
   function structureType(col, row, brightness, inMask, screenR) {
     const h = cellHash(col, row);
-
-    // At small structure sizes, prioritise dense types so the portrait
-    // colour fills the cell area without visible dark gaps.
-    if (screenR < 18) {
-      return DENSE[h % DENSE.length];
-    }
-
+    if (screenR < 18) return DENSE[h % DENSE.length];
     if (!inMask) {
-      const bg = ['galaxy','moon','wave','infinity','breath','hilbert','bintree','wave','galaxy'];
-      return bg[h % bg.length];
+      return ['galaxy','moon','wave','infinity','breath','hilbert','bintree','wave','galaxy'][h % 9];
     }
     if (brightness > 160) {
-      const light = [
-        'lotus','sun','golden','om','breath','heart','mandala','elephant',
-        'plant','sierpinski','infinity','fish','dna','wave'
-      ];
-      return light[h % light.length];
+      return ['lotus','sun','golden','om','breath','heart','mandala','elephant',
+              'plant','sierpinski','infinity','fish','dna','wave'][h % 14];
     }
     if (brightness > 100) {
-      const mid = [
-        'wave','fish','ouroboros','infinity','dna','plant','lotus','moon',
-        'heart','golden','mandala','om','breath','sierpinski','hilbert',
-        'elephant','sun','circuit','neural'
-      ];
-      return mid[h % mid.length];
+      return ['wave','fish','ouroboros','infinity','dna','plant','lotus','moon',
+              'heart','golden','mandala','om','breath','sierpinski','hilbert',
+              'elephant','sun','circuit','neural'][h % 19];
     }
     return ['maze','circuit','neural','dna','galaxy','ouroboros',
             'hilbert','bintree','sierpinski','mandala','infinity','breath'][h % 12];
@@ -90,27 +75,36 @@ const Portrait = (() => {
 
         const color = `rgb(${red},${grn},${blu})`;
 
-        // Sub-pixel: 1×1 rect
-        if (screenR < 1.2) {
-          ctx.fillStyle = color;
-          ctx.fillRect(sx, sy, 1.5, 1.5);
-          continue;
+        // ── Portrait-colour fill ──────────────────────────────────────────────
+        // Tiles perfectly, zero gaps. Fades slowly as structures establish.
+        // Same colour as structures — no "two layer" visual separation.
+        const fillAlpha = screenR < 4
+          ? 1
+          : Math.max(0, 1 - (screenR - 4) / 50);
+
+        if (fillAlpha > 0.005) {
+          const cellX = (col * cellW - vpX) * zoom;
+          const cellY = (row * cellH - vpY) * zoom;
+          ctx.fillStyle = fillAlpha > 0.995
+            ? color
+            : `rgba(${red},${grn},${blu},${fillAlpha.toFixed(3)})`;
+          ctx.fillRect(cellX, cellY, cellPx + 0.5, cellPx + 0.5);
         }
 
-        // The structure IS the pixel — drawn in portrait colour, no background fill.
-        // At small sizes DENSE types (breath=concentric rings, mandala, sierpinski)
-        // cover their area well, so the portrait tone reads correctly.
-        // At larger sizes the full variety of types reveals itself.
-        // 2.2× bleed so neighbouring structures overlap, filling inter-cell gaps.
+        // ── Structure in portrait colour ──────────────────────────────────────
+        // Same colour as the fill so the two layers are visually unified.
+        // The structure provides form and texture that reveals as you zoom in.
+        if (screenR < 3) continue;
+
         const type    = structureType(col, row, brightness, inMask, screenR);
         const seed    = cellHash(col, row);
         const depth   = Math.min(5, Math.max(0, Math.floor(Math.log(screenR / 6) / Math.log(4))));
-        const opacity = Math.min(1, (screenR - 1.2) / 3);
+        const opacity = Math.min(1, (screenR - 3) / 5);
 
         ctx.save();
         ctx.translate(sx, sy);
         ctx.rotate(angle);
-        Structures.draw(ctx, type, screenR * 2.2, color, seed, opacity, depth);
+        Structures.draw(ctx, type, screenR * 1.8, color, seed, opacity, depth);
         ctx.restore();
       }
     }
