@@ -38,43 +38,23 @@
   const cx = () => canvas.width  / 2;
   const cy = () => canvas.height / 2;
 
-  // ── Smooth animated zoom ──────────────────────────────────────────────────
-  let animFrame = null;
-  function animateZoom(screenX, screenY, factor, durationMs = 500) {
-    if (animFrame) cancelAnimationFrame(animFrame);
-    const targetZoom = viewport.zoom * factor;
-    const startZoom  = viewport.zoom;
-    const start      = performance.now();
-    function tick(now) {
-      const t    = Math.min(1, (now - start) / durationMs);
-      const ease = 1 - Math.pow(1 - t, 3);
-      const want = startZoom * Math.pow(targetZoom / startZoom, ease);
-      Viewport.zoomAround(screenX, screenY, want / viewport.zoom);
-      if (t < 1) animFrame = requestAnimationFrame(tick);
-    }
-    animFrame = requestAnimationFrame(tick);
-  }
-
-  // Controls
-  document.getElementById('reset-btn').addEventListener('click', () => {
-    if (animFrame) cancelAnimationFrame(animFrame);
-    Viewport.resetView();
-  });
-  document.getElementById('zoom-in').addEventListener('click',  () => animateZoom(cx(), cy(),  1.5));
-  document.getElementById('zoom-out').addEventListener('click', () => animateZoom(cx(), cy(), 1/1.5));
+  // Controls — zoom in/out, reset
+  document.getElementById('reset-btn').addEventListener('click', () => Viewport.resetView());
+  document.getElementById('zoom-in').addEventListener('click',  () => Viewport.zoomAround(cx(), cy(),   1.5));
+  document.getElementById('zoom-out').addEventListener('click', () => Viewport.zoomAround(cx(), cy(), 1/1.5));
   document.addEventListener('keydown', (e) => {
-    if (e.key === '+' || e.key === '=') animateZoom(cx(), cy(),  1.5);
-    if (e.key === '-' || e.key === '_') animateZoom(cx(), cy(), 1/1.5);
+    if (e.key === '+' || e.key === '=') Viewport.zoomAround(cx(), cy(),   1.5);
+    if (e.key === '-' || e.key === '_') Viewport.zoomAround(cx(), cy(), 1/1.5);
   });
 
-  // Click anywhere → zoom in 1.5× centred on that point
+  // Click canvas → zoom in 1.5× centred on that exact point, every time.
+  // Never zooms out. Only − button / − key zooms out.
   let mdX = 0, mdY = 0;
   canvas.addEventListener('mousedown', (e) => { mdX = e.clientX; mdY = e.clientY; });
   canvas.addEventListener('mouseup', (e) => {
-    const d = Math.hypot(e.clientX - mdX, e.clientY - mdY);
-    if (d > 6) return; // drag — ignore
+    if (Math.hypot(e.clientX - mdX, e.clientY - mdY) > 6) return; // drag
     const rect = canvas.getBoundingClientRect();
-    animateZoom(e.clientX - rect.left, e.clientY - rect.top, 1.5);
+    Viewport.zoomAround(e.clientX - rect.left, e.clientY - rect.top, 1.5);
   });
 
   function renderFrame() {
