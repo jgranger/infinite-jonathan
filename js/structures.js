@@ -178,15 +178,6 @@ const Structures = (() => {
     ctx.lineWidth = Math.max(1.0, size * 0.052);
     ctx.stroke();
 
-    // Small squares along the spiral (Fibonacci squares hint)
-    let a = 0, b = size * 0.06;
-    let cx2 = 0, cy2 = 0;
-    for (let i = 0; i < 6 && b < size; i++) {
-      const s = b;
-      ctx.strokeRect(cx2 - s * 0.5, cy2 - s * 0.5, s, s);
-      [a, b] = [b, a + b];
-      cx2 += s * (rng() > 0.5 ? 1 : -1) * 0.2;
-    }
 
     ctx.restore();
   }
