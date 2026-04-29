@@ -38,13 +38,19 @@
   const cx = () => canvas.width  / 2;
   const cy = () => canvas.height / 2;
 
-  // Controls — zoom in/out, reset
-  document.getElementById('reset-btn').addEventListener('click', () => Viewport.resetView());
-  document.getElementById('zoom-in').addEventListener('click',  () => Viewport.zoomAround(cx(), cy(),   1.5));
-  document.getElementById('zoom-out').addEventListener('click', () => Viewport.zoomAround(cx(), cy(), 1/1.5));
+  const panStep = () => canvas.width * 0.25; // pan 25% of screen width per press
+
+  // Controls — zoom, pan, reset
+  document.getElementById('reset-btn').addEventListener('click',  () => Viewport.resetView());
+  document.getElementById('zoom-in').addEventListener('click',    () => Viewport.zoomAround(cx(), cy(),   1.5));
+  document.getElementById('zoom-out').addEventListener('click',   () => Viewport.zoomAround(cx(), cy(), 1/1.5));
+  document.getElementById('pan-left').addEventListener('click',   () => Viewport.panBy(-panStep(), 0));
+  document.getElementById('pan-right').addEventListener('click',  () => Viewport.panBy( panStep(), 0));
   document.addEventListener('keydown', (e) => {
-    if (e.key === '+' || e.key === '=') Viewport.zoomAround(cx(), cy(),   1.5);
-    if (e.key === '-' || e.key === '_') Viewport.zoomAround(cx(), cy(), 1/1.5);
+    if (e.key === '+' || e.key === '=')    Viewport.zoomAround(cx(), cy(),   1.5);
+    if (e.key === '-' || e.key === '_')    Viewport.zoomAround(cx(), cy(), 1/1.5);
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); Viewport.panBy(-panStep(), 0); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); Viewport.panBy( panStep(), 0); }
   });
 
   // Click canvas → zoom in 1.5× centred on that exact point, every time.

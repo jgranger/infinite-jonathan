@@ -154,7 +154,14 @@ const Viewport = (() => {
     onUpdate && onUpdate(state);
   }
 
+  function panBy(screenDx, screenDy) {
+    state.x += screenDx / state.zoom;
+    state.y += screenDy / state.zoom;
+    constrainPan();
+    onUpdate && onUpdate(state);
+  }
+
   function getState() { return { ...state }; }
 
-  return { init, getState, resetView, zoomAround };
+  return { init, getState, resetView, zoomAround, panBy };
 })();

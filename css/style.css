@@ -29,6 +29,12 @@ canvas.dragging { cursor: grabbing; }
   user-select: none;
 }
 
+#pan-btns {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
 #zoom-level {
   color: rgba(255,255,255,0.5);
   font-size: 11px;
