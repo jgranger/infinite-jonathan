@@ -19,29 +19,30 @@ canvas.dragging { cursor: grabbing; }
 
 #nav-controls {
   position: fixed;
-  right: 20px;
+  right: 16px;
   top: 50%;
   transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 32px 32px 32px;
+  grid-template-rows: 32px 32px 32px;
+  grid-template-areas:
+    ". top ."
+    "lft mid rgt"
+    ". bot .";
   gap: 4px;
   user-select: none;
 }
 
-.nav-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
 #zoom-level {
   color: rgba(255,255,255,0.5);
-  font-size: 11px;
-  min-width: 36px;
+  font-size: 10px;
   text-align: center;
-  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.04em;
 }
+
 
 .zoom-btn {
   background: rgba(255,255,255,0.07);

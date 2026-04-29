@@ -16,17 +16,11 @@
   <canvas id="c"></canvas>
 
   <div id="nav-controls">
-    <div class="nav-row">
-      <button class="zoom-btn" id="zoom-in">+</button>
-    </div>
-    <div class="nav-row">
-      <button class="zoom-btn" id="pan-left">&#8592;</button>
-      <span id="zoom-level">1x</span>
-      <button class="zoom-btn" id="pan-right">&#8594;</button>
-    </div>
-    <div class="nav-row">
-      <button class="zoom-btn" id="zoom-out">&#8722;</button>
-    </div>
+    <button class="zoom-btn" id="zoom-in"   style="grid-area:top">+</button>
+    <button class="zoom-btn" id="pan-left"  style="grid-area:lft">&#8592;</button>
+    <span   id="zoom-level"                 style="grid-area:mid">1x</span>
+    <button class="zoom-btn" id="pan-right" style="grid-area:rgt">&#8594;</button>
+    <button class="zoom-btn" id="zoom-out"  style="grid-area:bot">&#8722;</button>
   </div>
 
   <div id="hint">click anywhere to zoom in &nbsp;·&nbsp; drag to pan</div>
