@@ -23,7 +23,7 @@ const Portrait = (() => {
   const BASE  = 32;   // world-px size of the coarsest octave's cells
   const RATIO = 4;    // each octave is 4× finer than the previous
   const MIN_SCREEN = 1.2;   // don't render structures smaller than this (px)
-  const MAX_SCREEN = 700;   // don't render structures larger than this (px)
+  const MAX_SCREEN = 40;    // structures up to 40px — identifiable at zoom 3–4×
 
   let td = null; // tonal data
 
@@ -121,7 +121,8 @@ const Portrait = (() => {
     // → L_min = floor( log(BASE × zoom / MAX_SCREEN) / log(RATIO) )
     // → L_max = ceil ( log(BASE × zoom / MIN_SCREEN) / log(RATIO) )
     const logR  = Math.log(RATIO);
-    const L_min = Math.max(0, Math.floor(Math.log(BASE * zoom / MAX_SCREEN) / logR));
+    // ceil excludes octaves whose cells would be larger than MAX_SCREEN
+    const L_min = Math.max(0, Math.ceil(Math.log(BASE * zoom / MAX_SCREEN) / logR));
     const L_max = Math.ceil(Math.log(BASE * zoom / MIN_SCREEN) / logR);
 
     for (let L = L_min; L <= L_max; L++) {

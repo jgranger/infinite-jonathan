@@ -38,7 +38,7 @@
   const cx = () => canvas.width  / 2;
   const cy = () => canvas.height / 2;
 
-  const panStep = () => canvas.width * 0.25; // pan 25% of screen width per press
+  const panStep = () => canvas.width * 0.12; // pan 12% of screen width per press
 
   // Controls — zoom, pan, reset
   document.getElementById('reset-btn').addEventListener('click',  () => Viewport.resetView());

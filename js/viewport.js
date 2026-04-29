@@ -22,8 +22,9 @@ const Viewport = (() => {
   function constrainPan() {
     const vw = canvasW / state.zoom;
     const vh = canvasH / state.zoom;
-    state.x = clamp(state.x, -vw * 0.2, portraitW - vw * 0.8);
-    state.y = clamp(state.y, -vh * 0.2, portraitH - vh * 0.8);
+    // Generous bounds — allow portrait to scroll fully in any direction
+    state.x = clamp(state.x, -vw * 0.7, portraitW - vw * 0.3);
+    state.y = clamp(state.y, -vh * 0.7, portraitH - vh * 0.3);
   }
 
   function zoomAround(mx, my, factor) {
