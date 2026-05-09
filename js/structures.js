@@ -257,31 +257,37 @@ const Structures = (() => {
   // --- Maze ---
   function maze(ctx, size, color, seed, depth) {
     const rng = lcg(seed);
-    const cols = Math.max(3, Math.floor(size / 8));
+    const cols = Math.max(3, Math.min(16, Math.floor(size / 8)));
     const rows = cols;
     const cw = size * 1.8 / cols;
     const ch = size * 1.8 / rows;
     const ox = -size * 0.9;
     const oy = -size * 0.9;
 
-    // Depth-first maze generation (always runs to define junctions)
     const visited = Array.from({length: rows}, () => new Array(cols).fill(false));
     const hWalls = Array.from({length: rows + 1}, () => new Array(cols).fill(true));
     const vWalls = Array.from({length: rows}, () => new Array(cols + 1).fill(true));
 
-    function carve(r, c) {
-      visited[r][c] = true;
+    // Iterative depth-first maze generation — avoids stack overflow at large sizes
+    const stack = [[0, 0]];
+    visited[0][0] = true;
+    while (stack.length > 0) {
+      const [r, c] = stack[stack.length - 1];
       const dirs = [[0,1],[0,-1],[1,0],[-1,0]].sort(() => rng() - 0.5);
+      let moved = false;
       for (const [dr, dc] of dirs) {
         const nr = r + dr, nc = c + dc;
         if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited[nr][nc]) {
           if (dr === 0) vWalls[r][dc > 0 ? c + 1 : c] = false;
           else hWalls[dr > 0 ? r + 1 : r][c] = false;
-          carve(nr, nc);
+          visited[nr][nc] = true;
+          stack.push([nr, nc]);
+          moved = true;
+          break;
         }
       }
+      if (!moved) stack.pop();
     }
-    carve(0, 0);
 
     if (depth > 0) {
       // 8-10 junction sample points
