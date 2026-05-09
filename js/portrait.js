@@ -87,87 +87,106 @@ const Portrait = (() => {
     return arr[(cx + cy * TILE) % arr.length];
   }
 
+  // ── Theme library ──────────────────────────────────────────────────────────
+  // To add themes to any area: just append type names to the relevant array.
+  // 'universal' is blended into every region automatically.
+  const THEMES = {
+    universal: [
+      // Space — appears everywhere
+      'galaxy','nebula','planet','moon','sun',
+      // Health — appears everywhere
+      'heartbeat','breath',
+    ],
+    head: [
+      // CS / systems / computation
+      'code_lines','metrics','neural','circuit','queue','stack',
+      'graph','linked_list','hash_table','hilbert','bintree',
+      'sierpinski','maze',
+      // Creativity / intellect
+      'music','golden','mandala',
+    ],
+    eyes: [
+      // TBD — exploring themes. Placeholder: wonder, perception, depth
+      'mandala','golden','galaxy','lotus','breath',
+    ],
+    heart: [
+      // Love, family, friends, gratitude
+      'heart','lotus','mandala','music','breath','golden',
+      // Nature, animals, life
+      'dog','cat','bird','fish','wave','plant','moon',
+      // Warmth, nourishment
+      'coffee',
+    ],
+    shoulders: [
+      // Heavy lifting — most weight-focused area
+      'barbell','barbell','dumbbell','dumbbell',
+      // Strength, endurance
+      'heartbeat','wave','sun','yoga',
+    ],
+    arms: [
+      // Strength, movement, action
+      'barbell','dumbbell','yoga',
+      // Nature / flow (arms in motion)
+      'wave','bird','fish','plant',
+    ],
+    hands: [
+      // Craft, creation, touch, mastery
+      'keyboard','paintbrush','music','code_lines','golden',
+      // Art, sensitivity, connection
+      'heart','lotus','mandala','coffee',
+      // Precision
+      'circuit','maze',
+    ],
+    belly: [
+      // Breath, comfort, nourishment
+      'breath','mandala','lotus','wave',
+      'coffee','heart','golden','plant','fish',
+    ],
+  };
+
+  // Merge a region's themes with universal ones
+  function themesFor(region) {
+    return [...(THEMES[region] || THEMES.heart), ...THEMES.universal];
+  }
+
+  // ── Region detection ───────────────────────────────────────────────────────
+  // Returns the body region name for a normalised portrait position (nx, ny).
+  // Coordinates: nx 0=left 1=right, ny 0=top 1=bottom.
+  // Tune the numbers here as the portrait mapping becomes clearer.
+  function detectRegion(nx, ny) {
+    // Head (top ~40%)
+    if (ny < 0.40) {
+      // Eyes: lower head, horizontally centered
+      if (ny > 0.20 && ny < 0.36 && nx > 0.36 && nx < 0.64) return 'eyes';
+      return 'head';
+    }
+    // Shoulders: upper sides
+    if (ny < 0.52 && (nx < 0.28 || nx > 0.72)) return 'shoulders';
+    // Arms: mid sides
+    if (ny > 0.40 && ny < 0.72 && (nx < 0.28 || nx > 0.72)) return 'arms';
+    // Hands: lower sides / extremities
+    if (ny > 0.68 && (nx < 0.38 || nx > 0.62)) return 'hands';
+    // Heart / chest: center upper-mid
+    if (ny > 0.38 && ny < 0.62 && nx > 0.32 && nx < 0.68) return 'heart';
+    // Belly: lower center
+    if (ny > 0.58 && nx > 0.32 && nx < 0.68) return 'belly';
+    // Default: heart themes (covers unspecified torso area)
+    return 'heart';
+  }
+
   function structureType(gx, gy, octave, brightness, wx, wy) {
-    // Normalize world position within the portrait (0–1)
     const nx = td ? wx / td.canvas_w : 0.5;
     const ny = td ? wy / td.canvas_h : 0.5;
 
-    // Bright bokeh / highlight regions → space objects (one per bubble, not clustered)
+    // Bright bokeh → space objects, one consistent type per bubble
     if (brightness > 215) {
       const t = ['galaxy','nebula','planet','moon','sun'];
       const bubbleId = ((Math.floor(gx / 8) * 997) ^ (Math.floor(gy / 8) * 613)) >>> 0;
       return t[bubbleId % t.length];
     }
 
-    // ── Body region mapping ─────────────────────────────────────────────────
-    const inHead   = ny < 0.42;
-    const inHeart  = ny > 0.35 && ny < 0.65 && nx > 0.32 && nx < 0.68;
-    const inArms   = ny > 0.32 && ny < 0.72 && (nx < 0.28 || nx > 0.72);
-    const inCenter = ny > 0.5  && ny < 0.82 && nx > 0.3  && nx < 0.7;
-
-    if (inHead) {
-      if (brightness > 120) {
-        return pickType([
-          'code_lines','metrics','music','neural','graph','queue','hash_table',
-          'hilbert','mandala','coffee','golden','stack','linked_list','circuit',
-          'sierpinski','bintree','maze',
-        ], gx, gy, octave);
-      }
-      return pickType([
-        'circuit','neural','code_lines','stack','linked_list','hilbert',
-        'bintree','sierpinski','queue','graph','hash_table','maze','metrics',
-      ], gx, gy, octave);
-    }
-
-    if (inHeart) {
-      if (brightness > 90) {
-        return pickType([
-          'heart','heartbeat','lotus','breath','mandala','dog','cat','music',
-          'bird','plant','fish','wave','golden','coffee','sun','moon',
-        ], gx, gy, octave);
-      }
-      return pickType([
-        'heart','heartbeat','breath','lotus','golden','mandala','wave','plant','fish',
-      ], gx, gy, octave);
-    }
-
-    if (inArms) {
-      return pickType([
-        'barbell','heartbeat','wave','bird','metrics','yoga',
-        'fish','heart','plant','sun','moon','breath',
-      ], gx, gy, octave);
-    }
-
-    if (inCenter) {
-      return pickType([
-        'yoga','breath','mandala','lotus','heartbeat','wave','golden',
-        'fish','plant','sun','moon','music','coffee',
-      ], gx, gy, octave);
-    }
-
-    // ── General / fallback ──────────────────────────────────────────────────
-    if (octave >= 3) {
-      return pickType([
-        'breath','mandala','sierpinski','golden','music','code_lines',
-        'lotus','wave','fish','heart','hilbert',
-      ], gx, gy, octave);
-    }
-    if (brightness > 160) {
-      return pickType([
-        'lotus','golden','music','coffee','dog','cat','bird','mandala',
-        'heart','plant','sun','fish','wave','yoga','breath','heartbeat',
-      ], gx, gy, octave);
-    }
-    if (brightness > 90) {
-      return pickType([
-        'wave','galaxy','plant','nebula','planet','golden','fish','moon',
-        'breath','sun','mandala','lotus','bird','dog','cat',
-      ], gx, gy, octave);
-    }
-    return pickType([
-      'circuit','neural','hilbert','bintree','code_lines','metrics',
-      'sierpinski','galaxy','queue','stack','graph','linked_list','hash_table','maze',
-    ], gx, gy, octave);
+    const region = detectRegion(nx, ny);
+    return pickType(themesFor(region), gx, gy, octave);
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────

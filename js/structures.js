@@ -37,7 +37,10 @@ const Structures = (() => {
     graph:      ['neural','circuit','linked_list','graph'],
     linked_list:['queue','stack','bintree','linked_list'],
     hash_table: ['circuit','bintree','linked_list','hash_table'],
-    barbell:   ['barbell','heartbeat','metrics','wave'],
+    barbell:   ['barbell','dumbbell','heartbeat','metrics','wave'],
+    dumbbell:  ['barbell','dumbbell','heartbeat','wave'],
+    keyboard:  ['code_lines','circuit','metrics','linked_list','keyboard'],
+    paintbrush:['music','golden','mandala','lotus','paintbrush'],
     yoga:      ['breath','mandala','lotus','heartbeat','yoga'],
     dog:       ['dog','cat','bird','fish'],
     cat:       ['cat','dog','bird'],
@@ -1366,6 +1369,121 @@ const Structures = (() => {
   }
 
   // ============================================================
+  // STRENGTH / HANDS / CRAFT STRUCTURES
+  // ============================================================
+
+  // --- Dumbbell (single fixed weight, for shoulders) ---
+  function dumbbell(ctx, size, color, seed) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineCap = 'round';
+
+    // Handle
+    ctx.lineWidth = Math.max(1, size * 0.06);
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.42, 0);
+    ctx.lineTo(size * 0.42, 0);
+    ctx.stroke();
+
+    // Weight heads (rounded cylinders) each side
+    for (const s of [-1, 1]) {
+      const cx = s * size * 0.52;
+      ctx.lineWidth = Math.max(1, size * 0.04);
+      ctx.beginPath();
+      ctx.ellipse(cx, 0, size * 0.16, size * 0.38, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      // Inner detail line
+      ctx.beginPath();
+      ctx.ellipse(cx, 0, size * 0.1, size * 0.28, 0, 0, Math.PI * 2);
+      ctx.lineWidth = Math.max(0.5, size * 0.02);
+      ctx.globalAlpha *= 0.4;
+      ctx.stroke();
+      ctx.globalAlpha /= 0.4;
+    }
+    ctx.restore();
+  }
+
+  // --- Keyboard ---
+  function keyboard(ctx, size, color, seed) {
+    const rng = lcg(seed);
+    const rows = 4, cols = 11;
+    const kw = size * 1.7 / cols, kh = size * 0.9 / rows, gap = size * 0.025;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(0.5, size * 0.028);
+
+    // Body outline
+    ctx.beginPath();
+    ctx.roundRect(-size * 0.88, -size * 0.48, size * 1.76, size * 0.96, size * 0.05);
+    ctx.stroke();
+
+    // Keys
+    for (let r = 0; r < rows; r++) {
+      const rowOffset = r * size * 0.04; // slight stagger per row
+      const keysInRow = r === rows - 1 ? 5 : cols - r;
+      for (let c = 0; c < keysInRow; c++) {
+        const x = -size * 0.82 + rowOffset + c * (kw + gap);
+        const y = -size * 0.38 + r * (kh + gap);
+        const w = r === rows - 1 && c === 2 ? kw * 4 : kw; // spacebar
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, kh, size * 0.015);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  // --- Paintbrush ---
+  function paintbrush(ctx, size, color, seed) {
+    const rng = lcg(seed);
+    const angle = rng() * Math.PI * 0.25 - Math.PI * 0.125;
+    ctx.save();
+    ctx.rotate(angle);
+    ctx.strokeStyle = color;
+    ctx.lineCap = 'round';
+
+    // Handle (long, tapered)
+    ctx.lineWidth = Math.max(1.5, size * 0.055);
+    ctx.beginPath();
+    ctx.moveTo(0, size * 0.8);
+    ctx.lineTo(0, size * 0.1);
+    ctx.stroke();
+
+    // Ferrule (metal band)
+    ctx.lineWidth = Math.max(1, size * 0.08);
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.08, size * 0.1);
+    ctx.lineTo(size * 0.08, size * 0.1);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.08, size * 0.0);
+    ctx.lineTo(size * 0.08, size * 0.0);
+    ctx.stroke();
+
+    // Bristles (tapered to a point)
+    ctx.lineWidth = Math.max(1, size * 0.04);
+    ctx.beginPath();
+    ctx.moveTo(-size * 0.08, size * 0.0);
+    ctx.bezierCurveTo(-size * 0.1, -size * 0.3, -size * 0.04, -size * 0.55, 0, -size * 0.75);
+    ctx.bezierCurveTo(size * 0.04, -size * 0.55, size * 0.1, -size * 0.3, size * 0.08, size * 0.0);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Bristle texture lines
+    ctx.lineWidth = Math.max(0.4, size * 0.015);
+    ctx.globalAlpha *= 0.4;
+    for (let i = 1; i < 4; i++) {
+      const t = i / 4;
+      ctx.beginPath();
+      ctx.moveTo(-size * 0.06 * (1 - t), -size * 0.2 * t);
+      ctx.lineTo(-size * 0.02 * (1 - t), -size * 0.6 * t - size * 0.1);
+      ctx.stroke();
+    }
+    ctx.globalAlpha /= 0.4;
+    ctx.restore();
+  }
+
+  // ============================================================
   // COMPUTER SCIENCE STRUCTURES
   // ============================================================
 
@@ -2159,8 +2277,8 @@ const Structures = (() => {
     // Mind / code / systems
     'code_lines', 'metrics', 'circuit', 'neural', 'hilbert', 'sierpinski', 'bintree', 'maze',
     'queue', 'stack', 'graph', 'linked_list', 'hash_table',
-    // Arts / life
-    'music', 'coffee',
+    // Arts / life / craft
+    'music', 'coffee', 'dumbbell', 'keyboard', 'paintbrush',
   ];
 
   function draw(ctx, type, size, color, seed, opacity = 1, depth = 0) {
@@ -2244,6 +2362,9 @@ const Structures = (() => {
       case 'metrics':    metrics(ctx, size, color, seed);        break;
       case 'music':      music(ctx, size, color, seed);          break;
       case 'coffee':     coffee(ctx, size, color, seed);         break;
+      case 'dumbbell':   dumbbell(ctx, size, color, seed);      break;
+      case 'keyboard':   keyboard(ctx, size, color, seed);      break;
+      case 'paintbrush': paintbrush(ctx, size, color, seed);    break;
     }
     ctx.restore();
   }
