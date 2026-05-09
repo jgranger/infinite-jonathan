@@ -15,7 +15,7 @@ const Viewport = (() => {
   let momentumFrame = null;
 
   const MIN_ZOOM = 0.4;
-  const MAX_ZOOM = 8000;
+  const MAX_ZOOM = Infinity; // no ceiling — this is Infinite Jonathan
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
@@ -43,7 +43,7 @@ const Viewport = (() => {
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    const factor = e.deltaY < 0 ? 1.25 : 1 / 1.25;
     zoomAround(mx, my, factor);
   }
 
